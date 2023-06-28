@@ -23,7 +23,7 @@ Python implementation took roughly 4 seconds:
 ```
 2023/p4_finals/aes_observed
 ➜ time ./solve.py
-100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:03<00:00,  8.38it/s]
+100%|█████████████████████████████████████████████████████████| 32/32 [00:03<00:00,  8.38it/s]
 b'p4{Oscilloscopes? Still_matter!}'
 ./solve.py  3.89s user 0.03s system 99% cpu 3.921 total
 ```
