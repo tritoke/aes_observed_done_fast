@@ -1,0 +1,9 @@
+[package]
+name = "aes_observed_done_fast"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.71"
+hex = "0.4.3"
+rayon = "1.7.0"
