@@ -22,6 +22,7 @@ const SBOX_HWS: [f32; 256] = [
 
 fn main() -> anyhow::Result<()> {
     let data: Measurements = include_str!("../data.txt").parse()?;
+    data.gen_stats();
     let key = data.break_key();
     println!("{}", String::from_utf8_lossy(&key));
 
@@ -45,12 +46,26 @@ impl Measurements {
                         .map(|b| SBOX_HWS[(b ^ guess) as usize])
                         .collect::<Vec<_>>();
 
-                    (guess, pearson_coeff(&hypot, &self.vts))
+                    (guess, incremental_pearson_coeff(&hypot, &self.vts))
                 })
                 .max_by(|(_, corre1), (_, corre2)| corre1.total_cmp(corre2))
                 .map(|(guess, _)| guess)
                 .expect("Hmm, interestingggg....")
         })
+    }
+
+    fn gen_stats(&self) {
+        for (i, pt) in self.pts.iter().enumerate() {
+            for guess in u8::MIN..=u8::MAX {
+                let hypot = pt
+                    .iter()
+                    .map(|&b| SBOX_HWS[(b ^ guess) as usize])
+                    .collect::<Vec<_>>();
+
+                let correlation = incremental_pearson_coeff(&hypot, &self.vts);
+                println!("{i},{guess},{correlation}");
+            }
+        }
     }
 }
 
@@ -70,7 +85,6 @@ impl std::str::FromStr for Measurements {
                     None
                 }
             })
-            .take(800)
             .fold(Default::default(), |mut acc: Measurements, (pt, vt)| {
                 for (pt_vec, &pt_byte) in acc.pts.iter_mut().zip(pt.iter()) {
                     pt_vec.push(pt_byte);
@@ -83,12 +97,12 @@ impl std::str::FromStr for Measurements {
     }
 }
 
-fn pearson_coeff(x: &[f32], y: &[f32]) -> f32 {
+fn incremental_pearson_coeff(x: &[f32], y: &[f32]) -> f32 {
     // implementation of the iterative update formulas from: https://crypto.fit.cvut.cz/sites/default/files/publications/fulltexts/pearson.pdf
     assert_eq!(x.len(), y.len());
 
     let [_, _, m2x, m2y, c2s] = x.iter().zip(y.iter()).enumerate().fold(
-        [0.0_f32, 0.0, 0.0, 0.0, 0.0],
+        [0.0_f32; 5],
         |[x_bar_, y_bar_, m2x_, m2y_, c2s_], (n, (&x, &y))| {
             let n = n as f32;
 
@@ -108,4 +122,25 @@ fn pearson_coeff(x: &[f32], y: &[f32]) -> f32 {
     );
 
     c2s / (m2x.sqrt() * m2y.sqrt())
+}
+
+fn parallel_pearson_coeff(x: &[f32], y: &[f32]) -> f32 {
+    // implementation of the naive one pass algorithm from: https://crypto.fit.cvut.cz/sites/default/files/publications/fulltexts/pearson.pdf
+    // this is too numerically unstable to use with f32 for many samples, but with f64 it can handle 2.4 million just fine
+    let [xys, xs, xxs, ys, yys] = x
+        .into_par_iter()
+        .zip_eq(y.into_par_iter())
+        .map(|(&x, &y)| [x * y, x, x * x, y, y * y])
+        .reduce(
+            || [0.0f32; 5],
+            |mut acc, x| {
+                for (a, b) in acc.iter_mut().zip(x.iter()) {
+                    *a += b;
+                }
+                acc
+            },
+        );
+
+    let n = x.len() as f32;
+    (n * xys - xs * ys) / (f32::sqrt(n * xxs - xs * xs) * f32::sqrt(n * yys - ys * ys))
 }

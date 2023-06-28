@@ -36,3 +36,16 @@ Benchmark 1: target/release/aes_observed_done_fast
   Time (mean ± σ):       5.1 ms ±   0.5 ms    [User: 45.3 ms, System: 16.5 ms]
   Range (min … max):     4.4 ms …   7.7 ms    412 runs
 ```
+
+## Analysis
+If we graph the correlation values for different numbers of samples (800, 5000, 2.4 million), we can see the background noise fade away and the correct key bytes stand out above the noise.
+
+800 samples:
+![](analysis/correlations_800.png)
+
+5000 samples:
+![](analysis/correlations.png)
+
+2.4 million samples:
+![](analysis/correlations_all.png)
+
